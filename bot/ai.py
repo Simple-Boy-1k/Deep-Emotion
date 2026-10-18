@@ -17,7 +17,7 @@ from config import GEMINI_API_KEY, GEMINI_MODEL
 # ==========================================================
 
 client = genai.Client(
-    api_key=GEMINI_API_KEY
+    api_key=AQ.Ab8RN6K6d2LcNY4dptuSjFD3oCcitYIFa40BopJhaehevtT2Ig
 )
 
 
