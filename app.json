@@ -50,7 +50,7 @@
     },
     "OUR_BOTS_URL": {
       "description": "Optional link to your other bots",
-      "value": "",
+      "value": "https://t.me/Youtube_musicr_obot?start=_tgr_vuDzb6BkZjZh",
       "required": false
     },
     "OWNER_USERNAME": {
