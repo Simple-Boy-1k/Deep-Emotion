@@ -394,22 +394,26 @@ async def generate_reply(
     # GEMINI REQUEST
     # ======================================================
 
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model=GEMINI_MODEL,
-        contents=final_prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            temperature=0.8,
-            max_output_tokens=2048,
-        ),
-    )
+    try:
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=final_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.8,
+                max_output_tokens=2048,
+            ),
+        )
 
-    return (
-        response.text.strip()
-        if response.text
-        else "Sorry, I couldn't generate a response."
-    )
+        return (
+            response.text.strip()
+            if response.text
+            else "Sorry, I couldn't generate a response."
+        )
+    except Exception as exc:
+        print(f"Gemini API Error: {exc}")
+        return f"❌ Debug Error: {str(exc)}"
 
 
 # ==========================================================
