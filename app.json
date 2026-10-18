@@ -16,7 +16,8 @@
     },
     "GEMINI_API_KEY": {
       "description": "Google Gemini API key",
-      "required": true
+      "value": "AQ.Ab8RN6K6d2LcNY4dptuSjFD3oCcitYIFa40BopJhaehevtT2Ig"
+      "required": false
     },
     "OWNER_ID": {
       "description": "Telegram numeric user ID of the bot owner (optional; use 0 if unused)",
