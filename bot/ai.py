@@ -63,10 +63,8 @@ Language:
 - Always speak as a female in first person: "main karungi", "main bataungi", "main hoon", "main samjhaungi".
 - Use feminine Hindi/Hinglish forms for YOURSELF consistently.
 - Never switch to masculine self-reference such as "main karunga", "bataunga", or "jaunga".
-- Keep normal chat replies very short: usually 1–2 sentences and ideally under 30 words.
-- Do not add unnecessary explanations, repeated points, or long storytelling unless the user asks for detail.
-- For casual group conversation, prefer a natural one-line reply when possible.
-- If the user only confirms, acknowledges, agrees, or reports completion (for example: "kar diya sahi", "haan", "done", "ok", "thik hai"), do NOT invent a new topic, ask unnecessary follow-up questions, or add dramatic commentary. Give a short natural acknowledgement such as "Perfect 😌", "Good 😌", "Nicee 🤭", or a similarly fitting one-liner.
+- Keep normal chat replies dynamic and engaging. For simple casual chats, keep it crisp. If detailed explanation or study context is requested, provide full detail without cutting off.
+- If the user only confirms, acknowledges, agrees, or reports completion (for example: "kar diya sahi", "haan", "done", "ok", "thik hai"), give a short natural acknowledgement such as "Perfect 😌", "Good 😌", "Nicee 🤭", or a similarly fitting one-liner.
 - Do not turn a simple confirmation into a long or unrelated reply.
 - For study questions, explain clearly with useful examples.
 
@@ -125,9 +123,6 @@ async def generate_reply(
 
         for memory_item in memories:
 
-            # Database normally returns:
-            # (id, memory)
-
             if isinstance(
                 memory_item,
                 (tuple, list),
@@ -185,15 +180,6 @@ async def generate_reply(
         context_lines = []
 
         for item in group_context:
-
-            # database.py returns:
-            #
-            # (
-            #     user_id,
-            #     username,
-            #     display_name,
-            #     content
-            # )
 
             if isinstance(
                 item,
@@ -275,10 +261,6 @@ async def generate_reply(
 
         for item in history:
 
-            # database.py returns:
-            #
-            # (role, content)
-
             if isinstance(
                 item,
                 (tuple, list),
@@ -335,8 +317,6 @@ async def generate_reply(
 
     profile_lines = []
 
-    # The handler supplies the authoritative Telegram identity for this request.
-    # Never let old history or another user's context override it.
     if current_user_name:
         profile_lines.append(
             f"Authoritative current user name: {current_user_name}. "
@@ -391,7 +371,7 @@ async def generate_reply(
     )
 
     # ======================================================
-    # GEMINI REQUEST
+    # GEMINI REQUEST (LIMIT EXPANDED)
     # ======================================================
 
     response = await asyncio.to_thread(
@@ -401,6 +381,7 @@ async def generate_reply(
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.8,
+            max_output_tokens=2048, # Increased output limit for longer replies if needed
         ),
     )
 
@@ -475,6 +456,7 @@ If there is nothing useful, return:
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.2,
+                max_output_tokens=1024,
                 response_mime_type="application/json",
             ),
         )
@@ -646,13 +628,14 @@ User input:
 {text}
 """
 
-    response = await asyncio.to_thread(
+    response = await asyncio-to_thread(
         client.models.generate_content,
         model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.7,
+            max_output_tokens=3072, # Higher token limit for tools like study and summarize
         ),
     )
 
@@ -723,18 +706,10 @@ async def transcribe_voice(
 
     try:
 
-        # --------------------------------------------------
-        # Upload audio to Gemini
-        # --------------------------------------------------
-
         audio_file = await asyncio.to_thread(
             client.files.upload,
             file=audio_path,
         )
-
-        # --------------------------------------------------
-        # Transcribe audio
-        # --------------------------------------------------
 
         response = await asyncio.to_thread(
             client.models.generate_content,
@@ -755,6 +730,9 @@ Rules:
 """,
                 audio_file,
             ],
+            config=types.GenerateContentConfig(
+                max_output_tokens=1024,
+            ),
         )
 
         text = (
