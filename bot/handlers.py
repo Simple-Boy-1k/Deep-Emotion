@@ -303,12 +303,25 @@ pending_ai_tools = {}
 WELCOME_IMAGE_URL = START_IMAGE_URL or "https://raw.githubusercontent.com/AashishTechs/Deep-Emotion/main/Welcome.jpg?v=2"
 
 
-def _btn(text, *, callback_data=None, url=None, style="primary"):
+def _btn(text, *, callback_data=None, url=None, style=None):
+    # `style` is intentionally ignored for compatibility with PTB versions
+    # where InlineKeyboardButton has no style parameter.
     return InlineKeyboardButton(
         text=text,
         callback_data=callback_data,
         url=url,
-        style=style,
+    )
+
+
+def _welcome_caption(bot_name):
+    safe_name = html.escape(bot_name or "ʜɪ ʜᴇʟʟᴏ")
+    return (
+        f"✨ ʜɪ ʜᴇʟʟᴏ, ɪ'ᴍ <b>{safe_name}</b> 💗\n\n"
+        "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
+        "🧠 Smart Memory • 💬 Natural Chat\n"
+        "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n"
+        "👥 Group Conversations • 📊 Stats\n\n"
+        "Choose an option below and let's get started. 👇"
     )
 
 
@@ -329,6 +342,9 @@ def main_menu_keyboard(bot_username="deepemotions01", is_owner=False):
         rows.append([_btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ", url=SUPPORT_CHAT_URL, style="success")])
     if OUR_BOTS_URL:
         rows.append([_btn("🤖 ᴏᴜʀ ʙᴏᴛs", url=OUR_BOTS_URL, style="primary")])
+    owner_username = (OWNER_USERNAME or "").strip().lstrip("@")
+    if owner_username:
+        rows.append([_btn("👑 ᴏᴡɴᴇʀ", url=f"https://t.me/{owner_username}", style="primary")])
     rows.append([_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")])
     if is_owner:
         rows.append([_btn("👑 ᴏᴡɴᴇʀ ᴘᴀɴᴇʟ", callback_data="owner_panel", style="danger")])
@@ -482,23 +498,17 @@ async def start(
     if not update.message:
         return
 
-    bot_username = getattr(context.bot, "username", None) or "deepemotions01"
-
-    text = (
-        "✨ **Hey, I'm Deep Emotions 💗**\n\n"
-        "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
-        "🧠 Smart Memory • 💬 Natural Chat\n"
-        "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n"
-        "🎙️ Voice AI • 👥 Group Conversations • 📊 Stats\n\n"
-        "Choose an option below and let's get started. 👇\n\n"
-        "👑 Owner: @Aashish\\_0fficial"
-    )
+    me = await context.bot.get_me()
+    bot_username = me.username or "deepemotions01"
+    bot_name = me.first_name or "ʜɪ ʜᴇʟʟᴏ"
+    user = update.effective_user
+    is_owner = bool(user and OWNER_ID != 0 and user.id == OWNER_ID)
 
     await update.message.reply_photo(
         photo=WELCOME_IMAGE_URL,
-        caption=text,
-        parse_mode="Markdown",
-        reply_markup=main_menu_keyboard(bot_username, is_owner=(OWNER_ID != 0 and update.effective_user.id == OWNER_ID)),
+        caption=_welcome_caption(bot_name),
+        parse_mode="HTML",
+        reply_markup=main_menu_keyboard(bot_username, is_owner=is_owner),
     )
 
 
@@ -1458,8 +1468,14 @@ async def button_handler(
     if not query or not query.message:
         return
 
-    await query.answer()
     data = query.data
+
+    # Authorize owner panel before acknowledging or displaying anything.
+    if data == "owner_panel" and (OWNER_ID == 0 or query.from_user.id != OWNER_ID):
+        await query.answer("⛔ This panel is only for the bot owner.", show_alert=True)
+        return
+
+    await query.answer()
 
     async def edit_panel(text, markup):
         if query.message.photo:
@@ -1481,14 +1497,8 @@ async def button_handler(
             None,
         )
 
-        text = (
-            "✨ **Hey, I'm Deep Emotions 💗**\n\n"
-            "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
-            "🧠 Smart Memory • 💬 Natural Chat\n"
-            "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n\n"
-            "Choose an option below and let's get started. 👇\n\n"
-            "👑 Owner: @Aashish\\_0fficial"
-        )
+        me = await context.bot.get_me()
+        text = _welcome_caption(me.first_name or "ʜɪ ʜᴇʟʟᴏ")
 
         try:
             await query.message.delete()
@@ -1499,7 +1509,7 @@ async def button_handler(
             chat_id=query.message.chat.id,
             photo=WELCOME_IMAGE_URL,
             caption=text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=main_menu_keyboard(
                 getattr(context.bot, "username", None),
                 is_owner=(OWNER_ID != 0 and query.from_user.id == OWNER_ID),
@@ -1507,9 +1517,6 @@ async def button_handler(
         )
 
     if data == "owner_panel":
-        if OWNER_ID == 0 or query.from_user.id != OWNER_ID:
-            await edit_panel("⛔ This panel is only for the bot owner.", InlineKeyboardMarkup([[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="primary")]]))
-            return
         await edit_panel(
             "👑 **Owner Panel**\n\n"
             f"Owner ID: `{OWNER_ID}`\n"
