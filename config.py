@@ -1,18 +1,15 @@
 # ==========================================================
-# DEEP EMOTIONS — CONFIGURATION
+# DEEP EMOTIONS — CONFIGURATION (Fixed)
 # ==========================================================
 
 import os
-
 from dotenv import load_dotenv
-
 
 # ==========================================================
 # LOAD ENVIRONMENT VARIABLES
 # ==========================================================
 
 load_dotenv()
-
 
 # ==========================================================
 # TELEGRAM BOT
@@ -23,7 +20,6 @@ BOT_TOKEN = os.getenv(
     "",
 ).strip()
 
-
 # ==========================================================
 # GEMINI AI
 # ==========================================================
@@ -33,18 +29,17 @@ GEMINI_API_KEY = os.getenv(
     "",
 ).strip()
 
+# Fixed default model to a stable standard version
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-3.8-flash",
+    "gemini-2.5-flash",
 ).strip()
-
 
 # ==========================================================
 # OWNER
 # ==========================================================
 
 try:
-
     OWNER_ID = int(
         os.getenv(
             "OWNER_ID",
@@ -52,15 +47,11 @@ try:
         )
         or 0
     )
-
 except ValueError:
-
     OWNER_ID = 0
 
-
-
 # ==========================================================
-# OPTIONAL LINKS / START IMAGE (set these in hosting Variables)
+# OPTIONAL LINKS / START IMAGE
 # ==========================================================
 
 SUPPORT_CHAT_URL = os.getenv("SUPPORT_CHAT_URL", "").strip()
@@ -75,20 +66,16 @@ OWNER_USERNAME = os.getenv("OWNER_USERNAME", "").strip().lstrip("@")
 # ==========================================================
 
 if not BOT_TOKEN:
-
     raise RuntimeError(
         "BOT_TOKEN missing. "
-        "Put BOT_TOKEN in your .env file."
+        "Put BOT_TOKEN in your .env file or Heroku Config Vars."
     )
-
 
 if not GEMINI_API_KEY:
-
     raise RuntimeError(
         "GEMINI_API_KEY missing. "
-        "Put GEMINI_API_KEY in your .env file."
+        "Put GEMINI_API_KEY in your .env file or Heroku Config Vars."
     )
-
 
 # ==========================================================
 # CONFIG SUMMARY
