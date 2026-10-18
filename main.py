@@ -46,7 +46,7 @@ from bot.truth_dare import (
 
 
 # ==========================================================
-# ✨ 𝐋𝐎𝐆𝐆𝐈𝐍𝐆
+# LOGGING
 # ==========================================================
 
 logging.basicConfig(
@@ -54,34 +54,47 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-logger = logging.getLogger("DeepEmotions")
+logger = logging.getLogger(__name__)
 
 
 # ==========================================================
-# 🧹 𝐏𝐄𝐑𝐈𝐎𝐃𝐈𝐂 𝐃𝐀𝐓𝐀𝐁𝐀𝐒𝐄 𝐂𝐋𝐄𝐀𝐍𝐔𝐏
+# PERIODIC DATABASE CLEANUP
 # ==========================================================
 
 async def periodic_db_cleanup():
-    """Periodically clean expired conversation and memory data."""
+    """
+    Periodically remove expired conversation and memory data.
+    Startup cleanup is handled by init_db(); this keeps cleanup
+    running while the bot stays online.
+    """
 
     while True:
+
         await asyncio.sleep(6 * 60 * 60)
 
         try:
+
             await cleanup_old_data()
-            logger.info("Database cleanup completed successfully.")
+
+            logger.info(
+                "Periodic database cleanup completed."
+            )
 
         except Exception:
-            logger.exception("Database cleanup failed.")
+
+            logger.exception(
+                "Periodic database cleanup failed."
+            )
 
 
 # ==========================================================
-# 🌐 𝐑𝐄𝐍𝐃𝐄𝐑 / 𝐇𝐄𝐑𝐎𝐊𝐔 𝐇𝐄𝐀𝐋𝐓𝐇 𝐒𝐄𝐑𝐕𝐄𝐑
+# RENDER HEALTH SERVER
 # ==========================================================
 
 class HealthHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
+
         self.send_response(200)
 
         self.send_header(
@@ -92,70 +105,152 @@ class HealthHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         self.wfile.write(
-            b"Deep Emotions Bot is running!"
+            b"Deep Emotions is alive!"
         )
 
     def log_message(self, format, *args):
-        pass
+        return
 
 
 def start_health_server():
-    port = int(os.environ.get("PORT", 10000))
+
+    port = int(
+        os.environ.get("PORT", 10000)
+    )
 
     server = HTTPServer(
         ("0.0.0.0", port),
         HealthHandler,
     )
 
-    logger.info("Health server started on port %s", port)
+    logger.info(
+        f"Health server running on port {port}"
+    )
 
     server.serve_forever()
 
 
 # ==========================================================
-# 🤖 𝐌𝐀𝐈𝐍 𝐁𝐎𝐓
+# MAIN BOT
 # ==========================================================
 
 async def main():
 
-    # Initialize database
+    # ------------------------------------------------------
+    # INITIALIZE DATABASE
+    # ------------------------------------------------------
+
     await init_db()
 
-    # Create Telegram application
+    # ------------------------------------------------------
+    # CREATE TELEGRAM APPLICATION
+    # ------------------------------------------------------
+
     application = (
-        Application.builder()
+        Application
+        .builder()
         .token(BOT_TOKEN)
         .build()
     )
 
-    # ------------------------------------------------------
-    # 📌 COMMAND HANDLERS
-    # ------------------------------------------------------
+    # ======================================================
+    # COMMAND HANDLERS
+    # ======================================================
 
-    command_handlers = [
-        ("start", start),
-        ("help", help_command),
-        ("ask", ask),
-        ("game", game_command),
-        ("truth", truth_command),
-        ("dare", dare_command),
-        ("td", truth_dare_command),
-        ("memory", memory_command),
-        ("forget", forget_memory),
-        ("forget_all", forget_all),
-        ("clear", clear_memory),
-        ("stats", stats),
-        ("privacy", privacy_command),
-    ]
-
-    for command, callback in command_handlers:
-        application.add_handler(
-            CommandHandler(command, callback)
+    application.add_handler(
+        CommandHandler(
+            "start",
+            start,
         )
+    )
 
-    # ------------------------------------------------------
-    # 🎮 TRUTH OR DARE CALLBACKS
-    # ------------------------------------------------------
+    application.add_handler(
+        CommandHandler(
+            "help",
+            help_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "ask",
+            ask,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "game",
+            game_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "truth",
+            truth_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "dare",
+            dare_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "td",
+            truth_dare_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "memory",
+            memory_command,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "forget",
+            forget_memory,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "forget_all",
+            forget_all,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "clear",
+            clear_memory,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "stats",
+            stats,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "privacy",
+            privacy_command,
+        )
+    )
+
+    # ======================================================
+    # TRUTH OR DARE BUTTONS
+    # ======================================================
 
     application.add_handler(
         CallbackQueryHandler(
@@ -164,103 +259,134 @@ async def main():
         )
     )
 
-    # ------------------------------------------------------
-    # 🔘 INLINE BUTTONS
-    # ------------------------------------------------------
+    # ======================================================
+    # INLINE BUTTONS
+    # ======================================================
 
     application.add_handler(
-        CallbackQueryHandler(button_handler)
+        CallbackQueryHandler(
+            button_handler
+        )
     )
 
-    # ------------------------------------------------------
-    # 👋 WELCOME NEW MEMBERS
-    # ------------------------------------------------------
+    # ======================================================
+    # WELCOME NEW MEMBERS
+    # ======================================================
 
     application.add_handler(
         MessageHandler(
             filters.StatusUpdate.NEW_CHAT_MEMBERS,
-            welcome_new_member,
+            welcome_new_member
         )
     )
 
-    # ------------------------------------------------------
-    # 👋 GOODBYE MEMBERS
-    # ------------------------------------------------------
+    # ======================================================
+    # GOODBYE MEMBERS
+    # ======================================================
 
     application.add_handler(
         MessageHandler(
             filters.StatusUpdate.LEFT_CHAT_MEMBER,
-            goodbye_member,
+            goodbye_member
         )
     )
 
-    # ------------------------------------------------------
-    # 🎙️ VOICE AI
-    # ------------------------------------------------------
+    # ======================================================
+    # STEP 7 — VOICE AI
+    # ======================================================
+    #
+    # Voice message
+    #       ↓
+    # voice_message()
+    #       ↓
+    # Gemini transcription
+    #       ↓
+    # AI response
+    #
 
     application.add_handler(
         MessageHandler(
             filters.VOICE,
-            voice_message,
+            voice_message
         ),
         group=0,
     )
 
-    # ------------------------------------------------------
-    # 🛡️ ANTI-SPAM MODERATION
-    # ------------------------------------------------------
+    # ======================================================
+    # STEP 4 — ANTI SPAM
+    # ======================================================
+    #
+    # Handles:
+    # - Flood spam
+    # - Links
+    # - Warnings
+    # - Temporary mute
+    #
 
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            moderate_message,
+            moderate_message
         ),
         group=1,
     )
 
-    # ------------------------------------------------------
-    # 🧠 AI CHAT
-    # ------------------------------------------------------
+    # ======================================================
+    # AI CHAT
+    # ======================================================
+    #
+    # Normal text
+    #       ↓
+    # chat_message()
+    #       ↓
+    # Memory / Group Context
+    #       ↓
+    # Gemini
+    #       ↓
+    # Response
+    #
 
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            chat_message,
+            chat_message
         ),
         group=2,
     )
 
-    # ------------------------------------------------------
-    # 🚀 START BOT
-    # ------------------------------------------------------
+    # ======================================================
+    # START BOT
+    # ======================================================
 
-    logger.info("Starting Deep Emotions Bot...")
+    logger.info(
+        "Deep Emotions is running..."
+    )
 
     await application.initialize()
+
     await application.start()
 
     await application.updater.start_polling(
         allowed_updates=Update.ALL_TYPES
     )
 
-    # Background tasks
-    asyncio.create_task(
-        proactive_group_loop(application.bot)
-    )
+    # Start slow, rate-limited proactive group engagement.
+    asyncio.create_task(proactive_group_loop(application.bot))
+    asyncio.create_task(periodic_db_cleanup())
 
-    asyncio.create_task(
-        periodic_db_cleanup()
-    )
+    # ======================================================
+    # KEEP BOT RUNNING
+    # ======================================================
 
-    logger.info("Bot started successfully!")
-
-    # Keep the bot running
     while True:
-        await asyncio.sleep(3600)
+
+        await asyncio.sleep(
+            3600
+        )
 
 
 # ==========================================================
-# ▶️ ENTRY POINT
+# ENTRY POINT
 # ==========================================================
 
 if __name__ == "__main__":
@@ -273,11 +399,21 @@ if __name__ == "__main__":
     health_thread.start()
 
     try:
-        asyncio.run(main())
+
+        asyncio.run(
+            main()
+        )
 
     except KeyboardInterrupt:
-        logger.info("Bot stopped.")
+
+        logger.info(
+            "Deep Emotions stopped."
+        )
 
     except Exception:
-        logger.exception("Bot crashed.")
+
+        logger.exception(
+            "Bot crashed."
+        )
+
         raise
