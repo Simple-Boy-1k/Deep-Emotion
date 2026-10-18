@@ -21,7 +21,10 @@ from telegram.constants import ChatAction
 
 from telegram.ext import ContextTypes, ApplicationHandlerStop
 
-from config import OWNER_ID
+from config import (
+    OWNER_ID, SUPPORT_CHAT_URL, SUPPORT_CHANNEL_URL, UPDATES_CHANNEL_URL,
+    START_IMAGE_URL, OUR_BOTS_URL, OWNER_USERNAME,
+)
 
 from bot.social_engine import (
     should_reply_group,
@@ -297,11 +300,7 @@ pending_ai_tools = {}
 # STEP 5 — MAIN MENU
 # ==========================================================
 
-WELCOME_IMAGE_URL = (
-    "https://raw.githubusercontent.com/"
-    "AashishTechs/Deep-Emotion/main/Welcome.jpg?v=2"
-)
-
+WELCOME_IMAGE_URL = START_IMAGE_URL or "https://raw.githubusercontent.com/AashishTechs/Deep-Emotion/main/Welcome.jpg?v=2"
 
 
 def _btn(text, *, callback_data=None, url=None, style="primary"):
@@ -313,19 +312,27 @@ def _btn(text, *, callback_data=None, url=None, style="primary"):
     )
 
 
-def main_menu_keyboard(bot_username="deepemotions01"):
+def main_menu_keyboard(bot_username="deepemotions01", is_owner=False):
     username = (bot_username or "deepemotions01").lstrip("@")
-    return InlineKeyboardMarkup(
-        [
-            [_btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴍᴇ", callback_data="chat", style="danger")],
-            [_btn("💗 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="help_main", style="danger")],
-            [
-                _btn("🔔 ᴜᴘᴅᴀᴛs", url="https://t.me/deep_emotions_01", style="success"),
-                _btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ", url="https://t.me/+cGoEVo7d8YtjOTI9", style="success"),
-            ],
-            [_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")],
-        ]
-    )
+    rows = [
+        [_btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴍᴇ", callback_data="chat", style="danger")],
+        [_btn("💗 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="help_main", style="danger")],
+    ]
+    links = []
+    if UPDATES_CHANNEL_URL:
+        links.append(_btn("🔔 ᴜᴘᴅᴀᴛᴇs", url=UPDATES_CHANNEL_URL, style="success"))
+    if SUPPORT_CHANNEL_URL:
+        links.append(_btn("📢 ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀɴɴᴇʟ", url=SUPPORT_CHANNEL_URL, style="success"))
+    if links:
+        rows.append(links)
+    if SUPPORT_CHAT_URL:
+        rows.append([_btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ", url=SUPPORT_CHAT_URL, style="success")])
+    if OUR_BOTS_URL:
+        rows.append([_btn("🤖 ᴏᴜʀ ʙᴏᴛs", url=OUR_BOTS_URL, style="primary")])
+    rows.append([_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")])
+    if is_owner:
+        rows.append([_btn("👑 ᴏᴡɴᴇʀ ᴘᴀɴᴇʟ", callback_data="owner_panel", style="danger")])
+    return InlineKeyboardMarkup(rows)
 
 
 def help_menu_keyboard():
@@ -491,7 +498,7 @@ async def start(
         photo=WELCOME_IMAGE_URL,
         caption=text,
         parse_mode="Markdown",
-        reply_markup=main_menu_keyboard(bot_username),
+        reply_markup=main_menu_keyboard(bot_username, is_owner=(OWNER_ID != 0 and update.effective_user.id == OWNER_ID)),
     )
 
 
@@ -1494,9 +1501,24 @@ async def button_handler(
             caption=text,
             parse_mode="Markdown",
             reply_markup=main_menu_keyboard(
-                getattr(context.bot, "username", None)
+                getattr(context.bot, "username", None),
+                is_owner=(OWNER_ID != 0 and query.from_user.id == OWNER_ID),
             ),
         )
+
+    if data == "owner_panel":
+        if OWNER_ID == 0 or query.from_user.id != OWNER_ID:
+            await edit_panel("⛔ This panel is only for the bot owner.", InlineKeyboardMarkup([[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="primary")]]))
+            return
+        await edit_panel(
+            "👑 **Owner Panel**\n\n"
+            f"Owner ID: `{OWNER_ID}`\n"
+            "Configuration is managed through your hosting Variables.\n"
+            "Set OWNER_ID, BOT_TOKEN, GEMINI_API_KEY, SUPPORT_CHAT_URL, "
+            "SUPPORT_CHANNEL_URL, UPDATES_CHANNEL_URL, START_IMAGE_URL and OUR_BOTS_URL.",
+            InlineKeyboardMarkup([[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="primary")]]),
+        )
+        return
 
     if data in {"home", "back"}:
         await show_home()
