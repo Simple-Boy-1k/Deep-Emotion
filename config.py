@@ -32,8 +32,9 @@ GEMINI_API_KEY = os.getenv(
 # Fixed default model to a stable standard version
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-2.5-flash",
+    "gemini-3.8-flash",
 ).strip()
+
 
 # ==========================================================
 # OWNER
