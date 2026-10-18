@@ -1,6 +1,6 @@
-# 𝐒𝐚𝐫𝐤𝐚𝐫 𝐎𝐰𝐧𝐞𝐫
+# 𝐒𝐚𝐫𝐤𝐚𝐫
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Simple-Boy-1k)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Simple-Boy-1k/Deep-Emotion)
 
 Telegram + Gemini AI chatbot with long-term memory,
 group conversation context, AI tools, voice support,
@@ -36,6 +36,8 @@ TelegramAIBot/
 ├── main.py
 ├── requirements.txt
 ├── README.md
+├── Procfile
+├── app.json
 ├── data/
 │   └── deep_emotions.db
 ├── bot/
