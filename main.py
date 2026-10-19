@@ -4,16 +4,17 @@ import os
 from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from telegram import Update
+from telegram import BotCommand, BotCommandScopeChat, Update
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
+    ChatMemberHandler,
     filters,
 )
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, OWNER_ID
 
 from bot.database import init_db, cleanup_old_data
 from bot.proactive import proactive_group_loop
@@ -25,6 +26,7 @@ from bot.handlers import (
     game_command,
     clear_memory,
     stats,
+    groups_command,
     chat_message,
     memory_command,
     forget_memory,
@@ -44,6 +46,12 @@ from bot.truth_dare import (
     truth_dare_callback,
 )
 
+from bot.broadcast import (
+    broadcast_command,
+    track_group_message,
+    track_bot_group_membership,
+)
+
 
 # ==========================================================
 # LOGGING
@@ -51,7 +59,7 @@ from bot.truth_dare import (
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=logging.INFO,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,50 +75,61 @@ async def periodic_db_cleanup():
     Startup cleanup is handled by init_db(); this keeps cleanup
     running while the bot stays online.
     """
+
     while True:
+
         await asyncio.sleep(6 * 60 * 60)
+
         try:
+
             await cleanup_old_data()
+
             logger.info(
                 "Periodic database cleanup completed."
             )
+
         except Exception:
+
             logger.exception(
                 "Periodic database cleanup failed."
             )
 
 
 # ==========================================================
-# RENDER / HEROKU HEALTH SERVER
+# RENDER HEALTH SERVER
 # ==========================================================
 
 class HealthHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        if self.path not in ("/", "/health"):
-            self.send_error(404, "Not Found")
-            return
-
-        body = b"Deep Emotions is alive!"
 
         self.send_response(200)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
+
+        self.send_header(
+            "Content-Type",
+            "text/plain; charset=utf-8",
+        )
+
         self.end_headers()
-        self.wfile.write(body)
+
+        self.wfile.write(
+            b"Deep Emotions is alive!"
+        )
 
     def log_message(self, format, *args):
         return
 
 
 def start_health_server():
-    port = int(os.environ.get("PORT", "10000"))
+
+    port = int(
+        os.environ.get("PORT", 10000)
+    )
 
     server = HTTPServer(
         ("0.0.0.0", port),
         HealthHandler,
     )
-    server.daemon_threads = True
 
     logger.info(
         f"Health server running on port {port}"
@@ -124,19 +143,17 @@ def start_health_server():
 # ==========================================================
 
 async def main():
-    if not BOT_TOKEN:
-        raise RuntimeError(
-            "BOT_TOKEN is missing. Set it in Heroku Config Vars."
-        )
 
     # ------------------------------------------------------
     # INITIALIZE DATABASE
     # ------------------------------------------------------
+
     await init_db()
 
     # ------------------------------------------------------
     # CREATE TELEGRAM APPLICATION
     # ------------------------------------------------------
+
     application = (
         Application
         .builder()
@@ -147,6 +164,30 @@ async def main():
     # ======================================================
     # COMMAND HANDLERS
     # ======================================================
+
+    # Owner-only broadcast; the command itself enforces owner + private chat.
+    application.add_handler(
+        CommandHandler("broadcast", broadcast_command)
+    )
+
+    # Track groups as soon as the bot is added/removed. The low-priority
+    # message tracker also discovers existing groups when updates are visible.
+    application.add_handler(
+        ChatMemberHandler(
+            track_bot_group_membership,
+            ChatMemberHandler.MY_CHAT_MEMBER,
+        ),
+        group=-1,
+    )
+
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.GROUPS,
+            track_group_message,
+        ),
+        group=-1,
+    )
+
 
     application.add_handler(
         CommandHandler(
@@ -232,6 +273,14 @@ async def main():
         )
     )
 
+    # Restricted to the owner and @Aashish_0fficial inside private chat.
+    application.add_handler(
+        CommandHandler(
+            "groups",
+            groups_command,
+        )
+    )
+
     application.add_handler(
         CommandHandler(
             "privacy",
@@ -283,9 +332,18 @@ async def main():
     )
 
     # ======================================================
-    # VOICE MESSAGES
+    # STEP 7 — VOICE AI
     # ======================================================
-    
+    #
+    # Voice message
+    #       ↓
+    # voice_message()
+    #       ↓
+    # Gemini transcription
+    #       ↓
+    # AI response
+    #
+
     application.add_handler(
         MessageHandler(
             filters.VOICE,
@@ -295,9 +353,16 @@ async def main():
     )
 
     # ======================================================
-    # MODERATION (Group 1)
+    # STEP 4 — ANTI SPAM
     # ======================================================
-    
+    #
+    # Handles:
+    # - Flood spam
+    # - Links
+    # - Warnings
+    # - Temporary mute
+    #
+
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -307,9 +372,20 @@ async def main():
     )
 
     # ======================================================
-    # AI CHAT (Group 2)
+    # AI CHAT
     # ======================================================
-    
+    #
+    # Normal text
+    #       ↓
+    # chat_message()
+    #       ↓
+    # Memory / Group Context
+    #       ↓
+    # Gemini
+    #       ↓
+    # Response
+    #
+
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -318,62 +394,99 @@ async def main():
         group=2,
     )
 
-    cleanup_task = None
-    proactive_task = None
+    # ======================================================
+    # START BOT
+    # ======================================================
 
-    try:
-        logger.info("Initializing Telegram application...")
+    logger.info(
+        "Deep Emotions is running..."
+    )
 
-        await application.initialize()
-        await application.start()
+    await application.initialize()
 
-        if application.updater is None:
-            raise RuntimeError("Telegram polling updater is unavailable.")
+    # Register public commands so Telegram displays them in the chat Menu.
+    # Keep owner-only /broadcast out of the public command list.
+    await application.bot.set_my_commands(
+        [
+            BotCommand("start", "Start Deep Emotion"),
+            BotCommand("help", "Show available commands"),
+            BotCommand("ask", "Ask the AI a question"),
+            BotCommand("game", "Play a chat game"),
+            BotCommand("truth", "Get a truth question"),
+            BotCommand("dare", "Get a dare challenge"),
+            BotCommand("td", "Start Truth or Dare"),
+            BotCommand("memory", "View your saved memory"),
+            BotCommand("forget", "Forget a saved memory"),
+            BotCommand("forget_all", "Delete all your saved memories"),
+            BotCommand("clear", "Clear the current conversation"),
+            BotCommand("stats", "View bot statistics"),
+            BotCommand("privacy", "Learn about privacy and data"),
+        ]
+    )
 
-        await application.updater.start_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=False,
+    # Show the private broadcast command only in the owner's bot chat.
+    if OWNER_ID:
+        await application.bot.set_my_commands(
+            [
+            BotCommand("start", "Start Deep Emotion"),
+            BotCommand("help", "Show available commands"),
+            BotCommand("ask", "Ask the AI a question"),
+            BotCommand("game", "Play a chat game"),
+            BotCommand("truth", "Get a truth question"),
+            BotCommand("dare", "Get a dare challenge"),
+            BotCommand("td", "Start Truth or Dare"),
+            BotCommand("memory", "View your saved memory"),
+            BotCommand("forget", "Forget a saved memory"),
+            BotCommand("forget_all", "Delete all your saved memories"),
+            BotCommand("clear", "Clear the current conversation"),
+            BotCommand("stats", "View bot statistics"),
+            BotCommand("privacy", "Learn about privacy and data"),
+            BotCommand("broadcast", "Broadcast to registered groups"),
+            BotCommand("groups", "List registered groups"),
+        ],
+            scope=BotCommandScopeChat(chat_id=OWNER_ID),
         )
 
-        cleanup_task = asyncio.create_task(
-            periodic_db_cleanup(),
-            name="database-cleanup",
+    # Show /groups only to the second authorized user as well.
+    await application.bot.set_my_commands(
+        [
+            BotCommand("start", "Start Deep Emotion"),
+            BotCommand("help", "Show available commands"),
+            BotCommand("ask", "Ask the AI a question"),
+            BotCommand("game", "Play a chat game"),
+            BotCommand("truth", "Get a truth question"),
+            BotCommand("dare", "Get a dare challenge"),
+            BotCommand("td", "Start Truth or Dare"),
+            BotCommand("memory", "View your saved memory"),
+            BotCommand("forget", "Forget a saved memory"),
+            BotCommand("forget_all", "Delete all your saved memories"),
+            BotCommand("clear", "Clear the current conversation"),
+            BotCommand("stats", "View bot statistics"),
+            BotCommand("privacy", "Learn about privacy and data"),
+            BotCommand("groups", "List registered groups"),
+        ],
+        scope=BotCommandScopeChat(chat_id=8877757796),
+    )
+
+    await application.start()
+
+    await application.updater.start_polling(
+        allowed_updates=Update.ALL_TYPES
+    )
+
+    # Start slow, rate-limited proactive group engagement.
+    asyncio.create_task(proactive_group_loop(application.bot))
+    asyncio.create_task(periodic_db_cleanup())
+
+    # ======================================================
+    # KEEP BOT RUNNING
+    # ======================================================
+
+    while True:
+
+        await asyncio.sleep(
+            3600
         )
-
-        proactive_task = asyncio.create_task(
-            proactive_group_loop(application.bot),
-            name="proactive-group-loop",
-        )
-
-        logger.info(
-            "Deep Emotions is running..."
-        )
-
-        # Keep the application alive.
-        await asyncio.Event().wait()
-
-    finally:
-        logger.info("Shutting down Deep Emotions...")
-
-        for task in (proactive_task, cleanup_task):
-            if task is not None:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                except Exception:
-                    logger.exception("Background task shutdown failed.")
-
-        if application.updater is not None:
-            if application.updater.running:
-                await application.updater.stop()
-
-        if application.running:
-            await application.stop()
-
-        await application.shutdown()
-        logger.info("Deep Emotions stopped.")
 
 
 # ==========================================================
@@ -384,22 +497,27 @@ if __name__ == "__main__":
 
     health_thread = Thread(
         target=start_health_server,
-        name="health-server",
         daemon=True,
     )
 
     health_thread.start()
 
     try:
+
         asyncio.run(
             main()
         )
+
     except KeyboardInterrupt:
+
         logger.info(
             "Deep Emotions stopped."
         )
+
     except Exception:
+
         logger.exception(
             "Bot crashed."
         )
+
         raise
