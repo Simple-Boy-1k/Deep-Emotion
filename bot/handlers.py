@@ -1,5 +1,5 @@
 # ==========================================================
-# DEEP EMOTIONS — TELEGRAM HANDLERS (FULL & COMPLETE CODE)
+# DEEP EMOTIONS — TELEGRAM HANDLERS
 # Step 1–8
 # ==========================================================
 
@@ -21,10 +21,7 @@ from telegram.constants import ChatAction
 
 from telegram.ext import ContextTypes, ApplicationHandlerStop
 
-from config import (
-    OWNER_ID, SUPPORT_CHAT_URL, SUPPORT_CHANNEL_URL, UPDATES_CHANNEL_URL,
-    START_IMAGE_URL, OUR_BOTS_URL, OWNER_USERNAME,
-)
+from config import OWNER_ID
 
 from bot.social_engine import (
     should_reply_group,
@@ -55,6 +52,7 @@ from bot.database import (
     get_group_context,
     clear_group_context,
     count_group_messages,
+    get_broadcast_groups,
 )
 
 
@@ -67,6 +65,8 @@ user_requests = defaultdict(deque)
 WINDOW_SECONDS = 20
 MAX_REQUESTS = 5
 
+# Reply to normal group messages without requiring a mention/reply.
+# Change to False for mention/reply-only group behavior.
 GROUP_REPLY_ALWAYS = True
 
 
@@ -298,57 +298,35 @@ pending_ai_tools = {}
 # STEP 5 — MAIN MENU
 # ==========================================================
 
-WELCOME_IMAGE_URL = START_IMAGE_URL or "https://raw.githubusercontent.com/AashishTechs/Deep-Emotion/main/Welcome.jpg?v=2"
+WELCOME_IMAGE_URL = (
+    "https://raw.githubusercontent.com/"
+    "AashishTechs/Deep-Emotion/main/Welcome.jpg?v=3"
+)
 
 
-def _btn(text, *, callback_data=None, url=None, style=None):
-    kwargs = {}
-    if style:
-        kwargs["style"] = style
+
+def _btn(text, *, callback_data=None, url=None, style="primary"):
     return InlineKeyboardButton(
         text=text,
         callback_data=callback_data,
         url=url,
-        **kwargs
+        style=style,
     )
 
 
-def _welcome_caption(bot_name):
-    safe_name = html.escape(bot_name or "ʜɪ ʜᴇʟʟᴏ")
-    return (
-        f"✨ ʜɪ ʜᴇʟʟᴏ, ɪ'ᴍ <b>{safe_name}</b> 💗\n\n"
-        "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
-        "🧠 Smart Memory • 💬 Natural Chat\n"
-        "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n"
-        "👥 Group Conversations • 📊 Stats\n\n"
-        "Choose an option below and let's get started. 👇"
-    )
-
-
-def main_menu_keyboard(bot_username="deepemotions01", is_owner=False):
+def main_menu_keyboard(bot_username="deepemotions01"):
     username = (bot_username or "deepemotions01").lstrip("@")
-    rows = [
-        [_btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴍᴇ", callback_data="chat", style="danger")],
-        [_btn("💗 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="help_main", style="danger")],
-    ]
-    links = []
-    if UPDATES_CHANNEL_URL:
-        links.append(_btn("🔔 ᴜᴘᴅᴀᴛᴇs", url=UPDATES_CHANNEL_URL, style="success"))
-    if SUPPORT_CHANNEL_URL:
-        links.append(_btn("📢 ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀɴɴᴇʟ", url=SUPPORT_CHANNEL_URL, style="success"))
-    if links:
-        rows.append(links)
-    if SUPPORT_CHAT_URL:
-        rows.append([_btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ", url=SUPPORT_CHAT_URL, style="success")])
-    if OUR_BOTS_URL:
-        rows.append([_btn("🤖 ᴏᴜʀ ʙᴏᴛs", url=OUR_BOTS_URL, style="primary")])
-    owner_username = (OWNER_USERNAME or "").strip().lstrip("@")
-    if owner_username:
-        rows.append([_btn("👑 ᴏᴡɴᴇʀ", url=f"https://t.me/{owner_username}", style="primary")])
-    rows.append([_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")])
-    if is_owner:
-        rows.append([_btn("👑 ᴏᴡɴᴇʀ ᴘᴀɴᴇʟ", callback_data="owner_panel", style="danger")])
-    return InlineKeyboardMarkup(rows)
+    return InlineKeyboardMarkup(
+        [
+            [_btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴍᴇ", callback_data="chat", style="danger")],
+            [_btn("💗 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="help_main", style="danger")],
+            [
+                _btn("🔔 ᴜᴘᴅᴀᴛs", url="https://t.me/deep_emotions_01", style="success"),
+                _btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ", url="https://t.me/+cGoEVo7d8YtjOTI9", style="success"),
+            ],
+            [_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")],
+        ]
+    )
 
 
 def help_menu_keyboard():
@@ -357,7 +335,7 @@ def help_menu_keyboard():
             [
                 _btn("💬 ᴄʜᴀᴛ", callback_data="help_chat", style="danger"),
                 _btn("🧠 ᴍᴇᴍᴏʀʏ", callback_data="help_memory", style="danger"),
-                _btn("🛠️ ai ᴛᴏᴏʟs", callback_data="help_ai_tools", style="danger"),
+                _btn("🛠️ ᴀɪ ᴛᴏᴏʟs", callback_data="help_ai_tools", style="danger"),
             ],
             [
                 _btn("🎙️ ᴠᴏɪᴄᴇ", callback_data="help_voice", style="primary"),
@@ -426,11 +404,11 @@ HELP_SECTION_TEXT = {
         "📖 **Commands**\n\n"
         "/start — Welcome panel\n"
         "/help — Help & Commands\n"
-        "/ask <question> — Ask AI\n"
-        "/game <truth|dare|wyr|joke> — Play a game\n"
+        "/ask question — Ask AI\n"
+        "/game truth | dare | wyr | joke — Play a game\n"
         "/memory — View saved memories\n"
-        "/forget <ID> — Delete one memory\n"
-        "/forget_all — Delete all memories\n"
+        "/forget ID — Delete one memory\n"
+        "/forget\\_all — Delete all memories\n"
         "/clear — Clear chat history\n"
         "/stats — View your stats\n"
         "/privacy — Privacy information\n\n"
@@ -448,6 +426,10 @@ def help_section_keyboard(section):
     return InlineKeyboardMarkup(rows)
 
 
+# ==========================================================
+# BACK BUTTON
+# ==========================================================
+
 def back_button():
     return InlineKeyboardMarkup(
         [
@@ -461,6 +443,10 @@ def back_button():
         ]
     )
 
+
+# ==========================================================
+# STEP 6 — AI TOOLS MENU
+# ==========================================================
 
 def ai_tools_keyboard():
     return InlineKeyboardMarkup(
@@ -479,6 +465,10 @@ def ai_tools_keyboard():
     )
 
 
+# ==========================================================
+# START
+# ==========================================================
+
 async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -486,20 +476,29 @@ async def start(
     if not update.message:
         return
 
-    me = await context.bot.get_me()
-    bot_username = me.username or "deepemotions01"
-    bot_name = me.first_name or "ʜɪ ʜᴇʟʟᴏ"
-    user = update.effective_user
-    is_owner = bool(user and OWNER_ID != 0 and user.id == OWNER_ID)
+    bot_username = getattr(context.bot, "username", None) or "deepemotions01"
+
+    text = (
+        "✨ **Hey, I'm Deep Emotions 💗**\n\n"
+        "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
+        "🧠 Smart Memory • 💬 Natural Chat\n"
+        "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n"
+        "🎙️ Voice AI • 👥 Group Conversations • 📊 Stats\n\n"
+        "Choose an option below and let's get started. 👇\n\n"
+        "👑 Owner: @Aashish\\_0fficial"
+    )
 
     await update.message.reply_photo(
         photo=WELCOME_IMAGE_URL,
-        caption=_welcome_caption(bot_name),
-        parse_mode="HTML",
-        reply_markup=main_menu_keyboard(bot_username, is_owner=is_owner),
+        caption=text,
+        parse_mode="Markdown",
+        reply_markup=main_menu_keyboard(bot_username),
     )
 
 
+# ==========================================================
+# HELP
+# ==========================================================
 async def help_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -522,9 +521,12 @@ async def help_command(
     )
 
 
+# ==========================================================
+# STEP 8 — PRIVACY
+# ==========================================================
+
 async def privacy_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE,
-):
+    update: Update,    context: ContextTypes.DEFAULT_TYPE,):
 
     if not update.message:
         return
@@ -566,6 +568,10 @@ async def privacy_command(
     )
 
 
+# ==========================================================
+# GROUP GAMES
+# ==========================================================
+
 async def game_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -583,6 +589,10 @@ async def game_command(
 
     await update.message.reply_text(social_game(game))
 
+
+# ==========================================================
+# ASK
+# ==========================================================
 
 async def ask(
     update: Update,
@@ -613,6 +623,10 @@ async def ask(
     )
 
 
+# ==========================================================
+# CLEAR CHAT
+# ==========================================================
+
 async def clear_memory(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -634,6 +648,10 @@ async def clear_memory(
         "🧠 Long-term memories safe hain."
     )
 
+
+# ==========================================================
+# MEMORY
+# ==========================================================
 
 async def memory_command(
     update: Update,
@@ -683,6 +701,10 @@ async def memory_command(
         reply_markup=back_button(),
     )
 
+
+# ==========================================================
+# FORGET ONE
+# ==========================================================
 
 async def forget_memory(
     update: Update,
@@ -737,6 +759,10 @@ async def forget_memory(
         )
 
 
+# ==========================================================
+# FORGET ALL
+# ==========================================================
+
 async def forget_all(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -767,6 +793,10 @@ async def forget_all(
         "🧹 Tumhari saari long-term memories delete kar di."
     )
 
+
+# ==========================================================
+# STATS
+# ==========================================================
 
 async def stats(
     update: Update,
@@ -804,6 +834,71 @@ async def stats(
         parse_mode="Markdown",
     )
 
+
+# ==========================================================
+# GROUPS — RESTRICTED TO OWNER + AUTHORIZED USER ID
+# ==========================================================
+
+async def groups_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+    user = update.effective_user
+    chat = update.effective_chat
+
+    if not message or not user or not chat:
+        return
+
+    # Keep this private: group names and IDs are administrative information.
+    if chat.type != "private":
+        await message.reply_text(
+            "🔒 /groups sirf bot ke private chat mein use ho sakta hai."
+        )
+        return
+
+    is_owner = bool(OWNER_ID and user.id == OWNER_ID)
+    is_second_authorized_user = user.id == 8877757796
+    if not (is_owner or is_second_authorized_user):
+        await message.reply_text("⛔ Ye command sirf authorized users ke liye hai.")
+        return
+
+    group_ids = await get_broadcast_groups()
+    if not group_ids:
+        await message.reply_text(
+            "👥 Abhi database mein koi registered group nahi mila."
+        )
+        return
+
+    lines = [f"👥 <b>Deep Emotion — Registered Groups ({len(group_ids)})</b>", ""]
+    for index, group_id in enumerate(group_ids, start=1):
+        try:
+            group = await context.bot.get_chat(group_id)
+            title = group.title or "Unnamed group"
+            safe_title = html.escape(title)
+            lines.append(f"{index}. <b>{safe_title}</b>\n   ID: <code>{group_id}</code>")
+        except Exception as exc:
+            # Retain the registry entry; don't silently delete data from a read command.
+            lines.append(f"{index}. <b>Group name unavailable</b>\n   ID: <code>{group_id}</code>")
+            print(f"Could not fetch group {group_id} for /groups: {exc}")
+
+    # Telegram limits a message to 4096 characters; send safe-sized chunks.
+    header = lines[:2]
+    chunk = "\n".join(header)
+    for line in lines[2:]:
+        candidate = f"{chunk}\n{line}" if chunk else line
+        if len(candidate) > 3500:
+            await message.reply_text(chunk, parse_mode="HTML")
+            chunk = line
+        else:
+            chunk = candidate
+    if chunk:
+        await message.reply_text(chunk, parse_mode="Markdown")
+
+
+# ==========================================================
+# SAVE GROUP CONTEXT
+# ==========================================================
 
 async def save_group_context(
     update: Update,
@@ -846,6 +941,10 @@ async def save_group_context(
     )
 
 
+# ==========================================================
+# CHAT MESSAGE
+# ==========================================================
+
 async def chat_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -868,8 +967,19 @@ async def chat_message(
     if not chat or not user:
         return
 
+    # ------------------------------------------------------
+    # Save group context
+    # ------------------------------------------------------
+
     if chat.type != "private":
-        await save_group_context(update)
+
+        await save_group_context(
+            update
+        )
+
+    # ------------------------------------------------------
+    # Bot information
+    # ------------------------------------------------------
 
     me = await context.bot.get_me()
 
@@ -891,6 +1001,8 @@ async def chat_message(
         and update.message.reply_to_message.from_user.id != me.id
     )
 
+    # Detect mentions of OTHER users. If a message is directed to
+    # another user, stay silent unless the bot itself is mentioned/replied to.
     other_user_mentioned = replied_to_other_user and not mentioned
 
     if update.message.entities:
@@ -907,12 +1019,18 @@ async def chat_message(
                     other_user_mentioned = True
                     break
 
+    # Fallback for clients/messages where Telegram mention entities are
+    # missing but an @username is still present in the message text.
     if not other_user_mentioned and not mentioned and not replied_to_bot:
         usernames = re.findall(r"(?<![\\w@])@[A-Za-z0-9_]{3,32}", text)
         bot_tag = f"@{me.username}".lower() if me.username else ""
         if any(tag.lower() != bot_tag for tag in usernames):
             other_user_mentioned = True
 
+    # ------------------------------------------------------
+    # Smart group mode
+
+    # ------------------------------------------------------
     if chat.type != "private":
         if not should_reply_group(
             chat.id,
@@ -925,7 +1043,12 @@ async def chat_message(
 
         mark_group_reply(chat.id)
 
+    # ------------------------------------------------------
+    # Remove bot mention
+    # ------------------------------------------------------
+
     if mentioned and me.username:
+
         text = re.sub(
             rf"@{re.escape(me.username)}",
             "",
@@ -933,6 +1056,9 @@ async def chat_message(
             flags=re.IGNORECASE,
         ).strip()
 
+    # ------------------------------------------------------
+    # STEP 6 — Selected AI tool
+    # ------------------------------------------------------
     tool_key = (
         chat.id,
         user.id,
@@ -944,13 +1070,19 @@ async def chat_message(
     )
 
     if selected_tool:
+
         await process_ai_tool(
             update,
             context,
             selected_tool,
             text,
         )
+
         return
+
+    # ------------------------------------------------------
+    # Normal AI
+    # ------------------------------------------------------
 
     await process_ai(
         update,
@@ -958,6 +1090,10 @@ async def chat_message(
         context,
     )
 
+
+# ==========================================================
+# STEP 6 — AI TOOL PROCESSOR
+# ==========================================================
 
 async def process_ai_tool(
     update: Update,
@@ -972,20 +1108,22 @@ async def process_ai_tool(
     text = text.strip()
 
     if not text:
+
         await update.message.reply_text(
             "🛠️ Pehle text bhejo jise main process karun."
         )
+
         return
 
     try:
+
         await update.message.chat.send_action(
             ChatAction.TYPING
         )
 
         reply = await ai_tool(
             tool,
-            text,
-        )
+            text,        )
         await send_text_with_user_mentions(
             update,
             context,
@@ -993,15 +1131,21 @@ async def process_ai_tool(
         )
 
     except Exception as exc:
+
         print(
             "AI tool error:",
             repr(exc),
         )
+
         await update.message.reply_text(
             "Sorry 💗 AI Tool use karte waqt "
             "problem aa gayi. Thodi der baad try karo."
         )
 
+
+# ==========================================================
+# PROCESS NORMAL AI
+# ==========================================================
 
 async def process_ai(
     update,
@@ -1014,17 +1158,24 @@ async def process_ai(
     if not user or not update.message:
         return
 
+    # ------------------------------------------------------
+    # Rate limit
+    # ------------------------------------------------------
+
     if (
         not allowed(user.id)
         and user.id != OWNER_ID
     ):
+
         await update.message.reply_text(
             "⏳ Thoda slow... "
             "bahut requests aa gayi 😅"
         )
+
         return
 
     chat = update.effective_chat
+
     chat_id = chat.id
     user_id = user.id
 
@@ -1035,26 +1186,48 @@ async def process_ai(
         )
     )
 
+    # ------------------------------------------------------
+    # History
+    # ------------------------------------------------------
+
     history = await get_history(
         chat_id,
         user_id,
     )
 
+    # ------------------------------------------------------
+    # Personal memories
+    # ------------------------------------------------------
+    #
+    # IMPORTANT:
+    # Private → allowed
+    # Group   → blocked
+    #
+
     memories = []
+
     if not is_group:
+
         memories = await get_memories(
             user_id,
             limit=10,
         )
 
+    # ------------------------------------------------------
+    # Group context
+    # ------------------------------------------------------
+
     group_context = []
+
     if is_group:
+
         group_context = await get_group_context(
             chat_id,
             limit=15,
         )
 
     try:
+
         await update.message.chat.send_action(
             ChatAction.TYPING
         )
@@ -1068,12 +1241,20 @@ async def process_ai(
             current_user_name=user.first_name or user.full_name,
         )
 
+        # --------------------------------------------------
+        # Save user message
+        # --------------------------------------------------
+
         await add_message(
             chat_id,
             user_id,
             "user",
             text,
         )
+
+        # --------------------------------------------------
+        # Save AI response
+        # --------------------------------------------------
 
         await add_message(
             chat_id,
@@ -1082,56 +1263,73 @@ async def process_ai(
             reply,
         )
 
+        # --------------------------------------------------
+        # Extract personal memories
+        # --------------------------------------------------
+        #
+        # IMPORTANT:
+        # Do NOT create personal memories from group chat.
+        #
+
         if not is_group:
+
             new_memories = await extract_memories(
                 text
             )
+
             for memory in new_memories:
+
                 saved = await add_memory(
                     user_id,
                     memory,
                 )
+
                 if saved:
+
                     print(
                         f"New memory saved for "
                         f"user {user_id}: {memory}"
                     )
 
         # --------------------------------------------------
-        # Send reply (Crash Safe Fix Applied Here)
+        # Send reply
         # --------------------------------------------------
-        try:
-            if context is not None:
-                await send_text_with_user_mentions(
-                    update,
-                    context,
-                    reply,
-                )
-            else:
-                await update.message.reply_text(reply)
-        except Exception as send_err:
-            print("Failed to reply to original message, sending direct message instead:", repr(send_err))
-            try:
-                await context.bot.send_message(chat_id=chat_id, text=reply)
-            except Exception as final_err:
-                print("Could not send fall-back message:", repr(final_err))
+
+        if context is not None:
+            await send_text_with_user_mentions(
+                update,
+                context,
+                reply,
+            )
+        else:
+            await update.message.reply_text(reply)
 
     except Exception as exc:
+
         print(
             "AI error:",
             repr(exc),
         )
+
         await update.message.reply_text(
             "Sorry 💗 abhi AI service se connection "
             "nahi ho pa raha. Thodi der baad try karo."
         )
 
 
+# ==========================================================
+# TELEGRAM USER MENTION
+# ==========================================================
+
 async def send_text_with_user_mentions(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     text: str,
 ):
+    """
+    Convert AI-generated tg://user HTML mentions into native
+    Telegram text_mention entities. No HTML is shown to users.
+    """
     pattern = re.compile(
         r'<a\s+href=["\']tg://user\?id=(\d+)["\']>(.*?)</a>',
         re.IGNORECASE | re.DOTALL,
@@ -1195,6 +1393,10 @@ async def send_text_with_user_mentions(
     )
 
 
+# ==========================================================
+# WELCOME
+# ==========================================================
+
 async def welcome_new_member(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -1204,6 +1406,7 @@ async def welcome_new_member(
         return
 
     chat = update.effective_chat
+
     new_members = (
         update.message.new_chat_members
         or []
@@ -1244,6 +1447,10 @@ async def welcome_new_member(
         )
 
 
+# ==========================================================
+# GOODBYE
+# ==========================================================
+
 async def goodbye_member(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -1253,6 +1460,7 @@ async def goodbye_member(
         return
 
     chat = update.effective_chat
+
     member = (
         update.message.left_chat_member
     )
@@ -1291,6 +1499,10 @@ async def goodbye_member(
     )
 
 
+# ==========================================================
+# BUTTON HANDLER
+# ==========================================================
+
 async def button_handler(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -1299,13 +1511,8 @@ async def button_handler(
     if not query or not query.message:
         return
 
-    data = query.data
-
-    if data == "owner_panel" and (OWNER_ID == 0 or query.from_user.id != OWNER_ID):
-        await query.answer("⛔ This panel is only for the bot owner.", show_alert=True)
-        return
-
     await query.answer()
+    data = query.data
 
     async def edit_panel(text, markup):
         if query.message.photo:
@@ -1327,8 +1534,14 @@ async def button_handler(
             None,
         )
 
-        me = await context.bot.get_me()
-        text = _welcome_caption(me.first_name or "ʜɪ ʜᴇʟʟᴏ")
+        text = (
+            "✨ **Hey, I'm Deep Emotions 💗**\n\n"
+            "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
+            "🧠 Smart Memory • 💬 Natural Chat\n"
+            "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n\n"
+            "Choose an option below and let's get started. 👇\n\n"
+            "👑 Owner: @Aashish\\_0fficial"
+        )
 
         try:
             await query.message.delete()
@@ -1339,24 +1552,11 @@ async def button_handler(
             chat_id=query.message.chat.id,
             photo=WELCOME_IMAGE_URL,
             caption=text,
-            parse_mode="HTML",
+            parse_mode="Markdown",
             reply_markup=main_menu_keyboard(
-                getattr(context.bot, "username", None),
-                is_owner=(OWNER_ID != 0 and query.from_user.id == OWNER_ID),
+                getattr(context.bot, "username", None)
             ),
         )
-
-    if data == "owner_panel":
-        await edit_panel(
-            "👑 **Owner Panel**\n\n"
-            f"Owner ID: `{OWNER_ID}`\n"
-            "Configuration is managed through your hosting Variables.\n"
-            "Set OWNER_ID, BOT_TOKEN, GEMINI_API_KEY, SUPPORT_CHAT_URL, "
-            "SUPPORT_CHANNEL_URL, UPDATES_CHANNEL_URL, START_IMAGE_URL and OUR_BOTS_URL.",
-            InlineKeyboardMarkup([[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="primary")]]),
-        )
-        return
-
     if data in {"home", "back"}:
         await show_home()
         return
@@ -1401,7 +1601,7 @@ async def button_handler(
             "Private chat mein directly baat karo.\n"
             "Group mein normal text par bhi main reply karungi.",
             InlineKeyboardMarkup(
-                [[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="danger")]]
+                [[_btn("🔙 ʙᴀᴄᴋ", callback_data="home", style="primary")]]
             ),
         )
         return
@@ -1685,10 +1885,24 @@ async def button_handler(
         return
 
 
+# ==========================================================
+# VOICE AI
+# ==========================================================
+
 async def voice_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    """
+    Handle Telegram voice messages.
+
+    Private:
+        Voice → transcription → personal AI context
+
+    Group:
+        Voice → transcription → group context only
+    """
+
     if not update.message:
         return
 
@@ -1700,6 +1914,10 @@ async def voice_message(
 
     if not user or not chat:
         return
+
+    # ------------------------------------------------------
+    # GROUP BOT MENTION / REPLY CHECK
+    # ------------------------------------------------------
 
     if chat.type in (
         "group",
@@ -1730,10 +1948,18 @@ async def voice_message(
         if not is_reply_to_bot and not is_mentioned:
             return
 
+    # ------------------------------------------------------
+    # STATUS
+    # ------------------------------------------------------
+
     status_message = await update.message.reply_text(
         "🎙️ **Voice sun rahi hoon...**",
         parse_mode="Markdown",
     )
+
+    # ------------------------------------------------------
+    # TEMP DIRECTORY
+    # ------------------------------------------------------
 
     temp_dir = (
         Path("data") / "voice_cache"
@@ -1751,6 +1977,10 @@ async def voice_message(
 
     try:
 
+        # --------------------------------------------------
+        # DOWNLOAD VOICE
+        # --------------------------------------------------
+
         telegram_file = await context.bot.get_file(
             update.message.voice.file_id
         )
@@ -1766,6 +1996,10 @@ async def voice_message(
             parse_mode="Markdown",
         )
 
+        # --------------------------------------------------
+        # TRANSCRIPTION
+        # --------------------------------------------------
+
         transcribed_text = await transcribe_voice(
             str(voice_file_path)
         )
@@ -1779,6 +2013,10 @@ async def voice_message(
 
             return
 
+        # --------------------------------------------------
+        # CHAT TYPE
+        # --------------------------------------------------
+
         is_group = (
             chat.type in (
                 "group",
@@ -1786,10 +2024,18 @@ async def voice_message(
             )
         )
 
+        # --------------------------------------------------
+        # HISTORY
+        # --------------------------------------------------
+
         history = await get_history(
             chat.id,
             user.id,
         )
+
+        # --------------------------------------------------
+        # PERSONAL MEMORY
+        # ------------------------------------------------------
 
         memories = []
 
@@ -1799,6 +2045,10 @@ async def voice_message(
                 user.id,
                 limit=10,
             )
+
+        # --------------------------------------------------
+        # GROUP CONTEXT
+        # ------------------------------------------------------
 
         group_context = []
 
@@ -1845,6 +2095,7 @@ async def voice_message(
                     voice_file_path.unlink()
             except Exception as exc:
                 print("Voice cache cleanup error:", repr(exc))
+
 
     except Exception as exc:
         print("Voice handler error:", repr(exc))
