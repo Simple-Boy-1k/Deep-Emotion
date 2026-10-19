@@ -479,13 +479,13 @@ async def start(
     bot_username = getattr(context.bot, "username", None) or "deepemotions01"
 
     text = (
-        "✨ **Hey, I'm Deep Emotions 💗**\n\n"
+        "✨ **Hey, I'm Priya 💗**\n\n"
         "Your friendly AI companion for chat, memory, games and everyday help. 🌸\n\n"
         "🧠 Smart Memory • 💬 Natural Chat\n"
         "🎮 Games • 🛠️ AI Tools • 🎙️ Voice AI\n"
         "🎙️ Voice AI • 👥 Group Conversations • 📊 Stats\n\n"
         "Choose an option below and let's get started. 👇\n\n"
-        "👑 Owner: @Aashish\\_0fficial"
+        "👑 Owner: @Simple\\_Boy\\_1k"
     )
 
     await update.message.reply_photo(
@@ -532,7 +532,7 @@ async def privacy_command(
         return
 
     privacy_text = (
-        "🔒 **𝐃ᴇᴇᴘ 𝐄ᴍᴏᴛɪᴏɴs — Privacy**\n\n"
+        "🔒 **𝐏𝐫𝐢𝐲𝐚 — Privacy**\n\n"
 
         "🧠 **Memory**\n"
         "Main useful non-sensitive information ko "
