@@ -299,8 +299,8 @@ pending_ai_tools = {}
 # ==========================================================
 
 WELCOME_IMAGE_URL = (
-    "https://raw.githubusercontent.com/"
-    "AashishTechs/Deep-Emotion/main/Welcome.jpg?v=3"
+    "https://telegra.ph/file/1949480f01355b4e87d26.jpg"
+    "https://telegra.ph/file/1949480f01355b4e87d26.jpg"
 )
 
 
@@ -321,8 +321,8 @@ def main_menu_keyboard(bot_username="deepemotions01"):
             [_btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴍᴇ", callback_data="chat", style="danger")],
             [_btn("💗 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs", callback_data="help_main", style="danger")],
             [
-                _btn("🔔 ᴜᴘᴅᴀᴛs", url="https://t.me/deep_emotions_01", style="success"),
-                _btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ", url="https://t.me/+cGoEVo7d8YtjOTI9", style="success"),
+                _btn("🔔 ᴜᴘᴅᴀᴛs", url="https://t.me/+7jFEQBjWNUwzNjMx", style="success"),
+                _btn("🛠️ ꜱᴜᴘᴘᴏʀᴛ", url="https://t.me/musicsupport2", style="success"),
             ],
             [_btn("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url=f"https://t.me/{username}?startgroup=true", style="primary")],
         ]
