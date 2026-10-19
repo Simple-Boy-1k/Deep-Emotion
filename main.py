@@ -17,6 +17,7 @@ from config import BOT_TOKEN
 
 from bot.database import init_db, cleanup_old_data
 from bot.proactive import proactive_group_loop
+from bot.broadcast import broadcast_handler  # 🟢 Broadcast Handler Added
 
 from bot.handlers import (
     start,
@@ -248,6 +249,14 @@ async def main():
         )
     )
 
+    # 🟢 Broadcast Command Added Here
+    application.add_handler(
+        CommandHandler(
+            "broadcast",
+            broadcast_handler,
+        )
+    )
+
     # ======================================================
     # TRUTH OR DARE BUTTONS
     # ======================================================
@@ -294,15 +303,6 @@ async def main():
     # ======================================================
     # STEP 7 — VOICE AI
     # ======================================================
-    #
-    # Voice message
-    #       ↓
-    # voice_message()
-    #       ↓
-    # Gemini transcription
-    #       ↓
-    # AI response
-    #
 
     application.add_handler(
         MessageHandler(
@@ -315,13 +315,6 @@ async def main():
     # ======================================================
     # STEP 4 — ANTI SPAM
     # ======================================================
-    #
-    # Handles:
-    # - Flood spam
-    # - Links
-    # - Warnings
-    # - Temporary mute
-    #
 
     application.add_handler(
         MessageHandler(
@@ -334,17 +327,6 @@ async def main():
     # ======================================================
     # AI CHAT
     # ======================================================
-    #
-    # Normal text
-    #       ↓
-    # chat_message()
-    #       ↓
-    # Memory / Group Context
-    #       ↓
-    # Gemini
-    #       ↓
-    # Response
-    #
 
     application.add_handler(
         MessageHandler(
