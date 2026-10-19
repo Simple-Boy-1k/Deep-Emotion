@@ -9,7 +9,7 @@ import json
 from google import genai
 from google.genai import types
 
-from config import GEMINI_API_KEY, GEMINI_MODEL, OWNER_ID
+from config import GEMINI_API_KEY, GEMINI_MODEL
 
 
 # ==========================================================
@@ -95,7 +95,6 @@ async def generate_reply(
     group_context=None,
     is_group=False,
     current_user_name=None,
-    user_id=None,
 ):
     """
     Generate an AI response.
@@ -201,7 +200,7 @@ async def generate_reply(
                 (tuple, list),
             ):
 
-                user_id_val = (
+                user_id = (
                     item[0]
                     if len(item) > 0
                     else None
@@ -228,7 +227,7 @@ async def generate_reply(
                 speaker = (
                     username
                     or display_name
-                    or f"User {user_id_val}"
+                    or f"User {user_id}"
                 )
 
             elif isinstance(
@@ -412,16 +411,9 @@ async def generate_reply(
             if response.text
             else "Sorry, I couldn't generate a response."
         )
-
     except Exception as exc:
         print(f"Gemini API Error: {exc}")
-
-        # Owner dekh sake ki limit ka exact time aur error kya hai
-        if user_id and OWNER_ID and int(user_id) == int(OWNER_ID):
-            return f"❌ Debug Error: {str(exc)}"
-
-        # Normal Users ke liye cute response
-        return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
+        return f"❌ Debug Error: {str(exc)}"
 
 
 # ==========================================================
@@ -482,7 +474,7 @@ If there is nothing useful, return:
 
     try:
 
-        response = await asyncio-to_thread(
+        response = await asyncio.to_thread(
             client.models.generate_content,
             model=GEMINI_MODEL,
             contents=prompt,
@@ -574,7 +566,6 @@ If there is nothing useful, return:
 async def ai_tool(
     tool,
     text,
-    user_id=None,
 ):
     """
     Generic AI tool processor.
@@ -661,79 +652,65 @@ User input:
 {text}
 """
 
-    try:
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.7,
-                max_output_tokens=3072,
-            ),
-        )
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.7,
+            max_output_tokens=3072,
+        ),
+    )
 
-        return (
-            response.text.strip()
-            if response.text
-            else "Sorry, I couldn't process that."
-        )
-
-    except Exception as exc:
-        print(f"Tool Error: {exc}")
-
-        if user_id and OWNER_ID and int(user_id) == int(OWNER_ID):
-            return f"❌ Tool Debug Error: {str(exc)}"
-
-        return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
+    return (
+        response.text.strip()
+        if response.text
+        else "Sorry, I couldn't process that."
+    )
 
 
 # ==========================================================
 # SHORTCUT FUNCTIONS
 # ==========================================================
 
-async def rewrite_text(text, user_id=None):
+async def rewrite_text(text):
 
     return await ai_tool(
         "rewrite",
         text,
-        user_id,
     )
 
 
-async def summarize_text(text, user_id=None):
+async def summarize_text(text):
 
     return await ai_tool(
         "summarize",
         text,
-        user_id,
     )
 
 
-async def translate_text(text, user_id=None):
+async def translate_text(text):
 
     return await ai_tool(
         "translate",
         text,
-        user_id,
     )
 
 
-async def explain_text(text, user_id=None):
+async def explain_text(text):
 
     return await ai_tool(
         "explain",
         text,
-        user_id,
     )
 
 
-async def study_help(text, user_id=None):
+async def study_help(text):
 
     return await ai_tool(
         "study",
         text,
-        user_id,
     )
 
 
@@ -743,7 +720,6 @@ async def study_help(text, user_id=None):
 
 async def transcribe_voice(
     audio_path,
-    user_id=None,
 ):
     """
     Convert Telegram voice/audio into text
