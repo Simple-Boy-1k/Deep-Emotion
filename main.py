@@ -17,7 +17,6 @@ from config import BOT_TOKEN
 
 from bot.database import init_db, cleanup_old_data
 from bot.proactive import proactive_group_loop
-from bot.broadcast import broadcast_handler  # 🟢 Broadcast Handler Added
 
 from bot.handlers import (
     start,
@@ -246,14 +245,6 @@ async def main():
         CommandHandler(
             "privacy",
             privacy_command,
-        )
-    )
-
-    # 🟢 Broadcast Command Added Here
-    application.add_handler(
-        CommandHandler(
-            "broadcast",
-            broadcast_handler,
         )
     )
 
