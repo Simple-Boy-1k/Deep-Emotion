@@ -960,8 +960,6 @@ async def chat_message(
         and update.message.reply_to_message.from_user.id != me.id
     )
 
-    # Detect mentions of OTHER users. If a message is directed to
-    # another user, stay silent unless the bot itself is mentioned/replied to.
     other_user_mentioned = replied_to_other_user and not mentioned
 
     if update.message.entities:
@@ -978,8 +976,6 @@ async def chat_message(
                     other_user_mentioned = True
                     break
 
-    # Fallback for clients/messages where Telegram mention entities are
-    # missing but an @username is still present in the message text.
     if not other_user_mentioned and not mentioned and not replied_to_bot:
         usernames = re.findall(r"(?<![\\w@])@[A-Za-z0-9_]{3,32}", text)
         bot_tag = f"@{me.username}".lower() if me.username else ""
@@ -1986,7 +1982,7 @@ async def voice_message(
             await add_message(chat.id, user.id, "model", reply)
 
             if not is_group:
-                new_memories = await extract_memories(transcribed_text)
+                new_memories = await extract_memories(transinned_text if 'transinned_text' in locals() else transcribed_text)
                 for memory in new_memories:
                     saved = await add_memory(user.id, memory)
                     if saved:
