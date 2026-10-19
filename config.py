@@ -5,55 +5,18 @@
 import os
 from dotenv import load_dotenv
 
-# ==========================================================
-# LOAD ENVIRONMENT VARIABLES
-# ==========================================================
-
 load_dotenv()
 
-# ==========================================================
-# TELEGRAM BOT
-# ==========================================================
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
-BOT_TOKEN = os.getenv(
-    "BOT_TOKEN",
-    "",
-).strip()
-
-# ==========================================================
-# GEMINI AI
-# ==========================================================
-
-GEMINI_API_KEY = os.getenv(
-    "GEMINI_API_KEY",
-    "",
-).strip()
-
-# Fixed default model to a stable standard version
-GEMINI_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.8-flash",
-).strip()
-
-
-# ==========================================================
-# OWNER
-# ==========================================================
+# Fixed default model to stable gemini-2.0-flash
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
 
 try:
-    OWNER_ID = int(
-        os.getenv(
-            "OWNER_ID",
-            "8885285219",
-        )
-        or 0
-    )
+    OWNER_ID = int(os.getenv("OWNER_ID", "8885285219") or 0)
 except ValueError:
     OWNER_ID = 0
-
-# ==========================================================
-# OPTIONAL LINKS / START IMAGE
-# ==========================================================
 
 SUPPORT_CHAT_URL = os.getenv("SUPPORT_CHAT_URL", "").strip()
 SUPPORT_CHANNEL_URL = os.getenv("SUPPORT_CHANNEL_URL", "").strip()
@@ -62,27 +25,10 @@ START_IMAGE_URL = os.getenv("START_IMAGE_URL", "https://raw.githubusercontent.co
 OUR_BOTS_URL = os.getenv("OUR_BOTS_URL", "").strip()
 OWNER_USERNAME = os.getenv("OWNER_USERNAME", "").strip().lstrip("@")
 
-# ==========================================================
-# VALIDATION
-# ==========================================================
-
 if not BOT_TOKEN:
-    raise RuntimeError(
-        "BOT_TOKEN missing. "
-        "Put BOT_TOKEN in your .env file or Heroku Config Vars."
-    )
+    raise RuntimeError("BOT_TOKEN missing.")
 
 if not GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY missing. "
-        "Put GEMINI_API_KEY in your .env file or Heroku Config Vars."
-    )
+    raise RuntimeError("GEMINI_API_KEY missing.")
 
-# ==========================================================
-# CONFIG SUMMARY
-# ==========================================================
-
-print(
-    f"Deep Emotions config loaded | "
-    f"Model: {GEMINI_MODEL}"
-)
+print(f"Deep Emotions config loaded | Model: {GEMINI_MODEL}")
