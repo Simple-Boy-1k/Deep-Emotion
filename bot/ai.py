@@ -9,7 +9,7 @@ import json
 from google import genai
 from google.genai import types
 
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_MODEL, OWNER_ID
 
 
 # ==========================================================
@@ -20,8 +20,8 @@ client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-# Model Name updated to gemini-3.8-flash as requested by Google API
-DEFAULT_MODEL = "gemini-3.8-flash"
+# Model Name updated (Uses GEMINI_MODEL if set, else defaults to gemini-3.8-flash)
+DEFAULT_MODEL = GEMINI_MODEL or "gemini-3.8-flash"
 
 
 # ==========================================================
@@ -399,8 +399,9 @@ async def generate_reply(
         )
     except Exception as exc:
         print(f"Gemini API Error: {exc}")
-        if user_id == 8885285219:
-            return f"❌ Debug Error: {str(exc)}"
+        # Only show the exact technical error to the Bot Owner (OWNER_ID)
+        if user_id and OWNER_ID != 0 and user_id == OWNER_ID:
+            return f"❌ Debug Error (Owner Only): {str(exc)}"
         return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
 
 
@@ -660,8 +661,8 @@ User input:
         )
     except Exception as exc:
         print(f"AI tool error: {exc}")
-        if user_id == 8885285219:
-            return f"❌ Debug Error: {str(exc)}"
+        if user_id and OWNER_ID != 0 and user_id == OWNER_ID:
+            return f"❌ Debug Error (Owner Only): {str(exc)}"
         return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
 
 
