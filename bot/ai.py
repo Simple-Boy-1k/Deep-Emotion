@@ -9,7 +9,7 @@ import json
 from google import genai
 from google.genai import types
 
-from config import GEMINI_API_KEY, GEMINI_MODEL, OWNER_ID
+from config import GEMINI_API_KEY, GEMINI_MODEL
 
 
 # ==========================================================
@@ -19,9 +19,6 @@ from config import GEMINI_API_KEY, GEMINI_MODEL, OWNER_ID
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
-
-# Model Name updated (Uses GEMINI_MODEL if set, else defaults to gemini-3.8-flash)
-DEFAULT_MODEL = GEMINI_MODEL or "gemini-3.8-flash"
 
 
 # ==========================================================
@@ -98,7 +95,6 @@ async def generate_reply(
     group_context=None,
     is_group=False,
     current_user_name=None,
-    user_id=None,
 ):
     """
     Generate an AI response.
@@ -128,6 +124,9 @@ async def generate_reply(
         memory_lines = []
 
         for memory_item in memories:
+
+            # Database normally returns:
+            # (id, memory)
 
             if isinstance(
                 memory_item,
@@ -187,12 +186,21 @@ async def generate_reply(
 
         for item in group_context:
 
+            # database.py returns:
+            #
+            # (
+            #     user_id,
+            #     username,
+            #     display_name,
+            #     content
+            # )
+
             if isinstance(
                 item,
                 (tuple, list),
             ):
 
-                user_id_val = (
+                user_id = (
                     item[0]
                     if len(item) > 0
                     else None
@@ -219,7 +227,7 @@ async def generate_reply(
                 speaker = (
                     username
                     or display_name
-                    or f"User {user_id_val}"
+                    or f"User {user_id}"
                 )
 
             elif isinstance(
@@ -266,6 +274,10 @@ async def generate_reply(
         history_lines = []
 
         for item in history:
+
+            # database.py returns:
+            #
+            # (role, content)
 
             if isinstance(
                 item,
@@ -323,6 +335,8 @@ async def generate_reply(
 
     profile_lines = []
 
+    # The handler supplies the authoritative Telegram identity for this request.
+    # Never let old history or another user's context override it.
     if current_user_name:
         profile_lines.append(
             f"Authoritative current user name: {current_user_name}. "
@@ -380,29 +394,21 @@ async def generate_reply(
     # GEMINI REQUEST
     # ======================================================
 
-    try:
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=DEFAULT_MODEL,
-            contents=final_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.8,
-                max_output_tokens=2048,
-            ),
-        )
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model=GEMINI_MODEL,
+        contents=final_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.8,
+        ),
+    )
 
-        return (
-            response.text.strip()
-            if response.text
-            else "Sorry, I couldn't generate a response."
-        )
-    except Exception as exc:
-        print(f"Gemini API Error: {exc}")
-        # Only show the exact technical error to the Bot Owner (OWNER_ID)
-        if user_id and OWNER_ID != 0 and user_id == OWNER_ID:
-            return f"❌ Debug Error (Owner Only): {str(exc)}"
-        return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
+    return (
+        response.text.strip()
+        if response.text
+        else "Sorry, I couldn't generate a response."
+    )
 
 
 # ==========================================================
@@ -465,11 +471,10 @@ If there is nothing useful, return:
 
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model=DEFAULT_MODEL,
+            model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.2,
-                max_output_tokens=1024,
                 response_mime_type="application/json",
             ),
         )
@@ -555,7 +560,6 @@ If there is nothing useful, return:
 async def ai_tool(
     tool,
     text,
-    user_id=None,
 ):
     """
     Generic AI tool processor.
@@ -642,28 +646,21 @@ User input:
 {text}
 """
 
-    try:
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=DEFAULT_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.7,
-                max_output_tokens=3072,
-            ),
-        )
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.7,
+        ),
+    )
 
-        return (
-            response.text.strip()
-            if response.text
-            else "Sorry, I couldn't process that."
-        )
-    except Exception as exc:
-        print(f"AI tool error: {exc}")
-        if user_id and OWNER_ID != 0 and user_id == OWNER_ID:
-            return f"❌ Debug Error (Owner Only): {str(exc)}"
-        return "Sorry 💗 Bbu Abi Nind me hu 😴. Thodi der baad try kara😁."
+    return (
+        response.text.strip()
+        if response.text
+        else "Sorry, I couldn't process that."
+    )
 
 
 # ==========================================================
@@ -716,7 +713,6 @@ async def study_help(text):
 
 async def transcribe_voice(
     audio_path,
-    user_id=None,
 ):
     """
     Convert Telegram voice/audio into text
@@ -742,7 +738,7 @@ async def transcribe_voice(
 
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model=DEFAULT_MODEL,
+            model=GEMINI_MODEL,
             contents=[
                 """
 Listen to this audio carefully.
@@ -759,9 +755,6 @@ Rules:
 """,
                 audio_file,
             ],
-            config=types.GenerateContentConfig(
-                max_output_tokens=1024,
-            ),
         )
 
         text = (
