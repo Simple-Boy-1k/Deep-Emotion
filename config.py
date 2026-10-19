@@ -33,10 +33,9 @@ GEMINI_API_KEY = os.getenv(
     "",
 ).strip()
 
-# Fixed default model to stable gemini-3.8-flash (os.getenv takes max 2 arguments)
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
 ).strip()
 
 
@@ -45,27 +44,18 @@ GEMINI_MODEL = os.getenv(
 # ==========================================================
 
 try:
+
     OWNER_ID = int(
         os.getenv(
             "OWNER_ID",
-            "8885285219",
+            "0",
         )
         or 0
     )
+
 except ValueError:
+
     OWNER_ID = 0
-
-
-# ==========================================================
-# OPTIONAL LINKS / START IMAGE
-# ==========================================================
-
-SUPPORT_CHAT_URL = os.getenv("SUPPORT_CHAT_URL", "").strip()
-SUPPORT_CHANNEL_URL = os.getenv("SUPPORT_CHANNEL_URL", "").strip()
-UPDATES_CHANNEL_URL = os.getenv("UPDATES_CHANNEL_URL", "https://t.me/deep_emotions_01").strip()
-START_IMAGE_URL = os.getenv("START_IMAGE_URL", "https://raw.githubusercontent.com/AashishTechs/Deep-Emotion/main/Welcome.jpg?v=2").strip()
-OUR_BOTS_URL = os.getenv("OUR_BOTS_URL", "").strip()
-OWNER_USERNAME = os.getenv("OWNER_USERNAME", "").strip().lstrip("@")
 
 
 # ==========================================================
@@ -73,16 +63,18 @@ OWNER_USERNAME = os.getenv("OWNER_USERNAME", "").strip().lstrip("@")
 # ==========================================================
 
 if not BOT_TOKEN:
+
     raise RuntimeError(
         "BOT_TOKEN missing. "
-        "Put BOT_TOKEN in your .env file or Heroku Config Vars."
+        "Put BOT_TOKEN in your .env file."
     )
 
 
 if not GEMINI_API_KEY:
+
     raise RuntimeError(
         "GEMINI_API_KEY missing. "
-        "Put GEMINI_API_KEY in your .env file or Heroku Config Vars."
+        "Put GEMINI_API_KEY in your .env file."
     )
 
 
