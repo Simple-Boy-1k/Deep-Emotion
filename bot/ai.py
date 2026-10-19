@@ -20,8 +20,8 @@ client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-# Model Name set to gemini-3.8-flash
-DEFAULT_MODEL = "gemini-3.8-flash"
+# Model Name fixed to stable gemini-2.0-flash
+DEFAULT_MODEL = "gemini-2.0-flash"
 
 
 # ==========================================================
