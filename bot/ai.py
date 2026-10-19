@@ -20,8 +20,8 @@ client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-# Model Name updated to stable gemini-2.5-flash
-DEFAULT_MODEL = "gemini-2.5-flash"
+# Model Name updated to gemini-3.8-flash as requested by Google API
+DEFAULT_MODEL = "gemini-3.8-flash"
 
 
 # ==========================================================
@@ -129,9 +129,6 @@ async def generate_reply(
 
         for memory_item in memories:
 
-            # Database normally returns:
-            # (id, memory)
-
             if isinstance(
                 memory_item,
                 (tuple, list),
@@ -189,15 +186,6 @@ async def generate_reply(
         context_lines = []
 
         for item in group_context:
-
-            # database.py returns:
-            #
-            # (
-            #     user_id,
-            #     username,
-            #     display_name,
-            #     content
-            # )
 
             if isinstance(
                 item,
@@ -279,10 +267,6 @@ async def generate_reply(
 
         for item in history:
 
-            # database.py returns:
-            #
-            # (role, content)
-
             if isinstance(
                 item,
                 (tuple, list),
@@ -339,8 +323,6 @@ async def generate_reply(
 
     profile_lines = []
 
-    # The handler supplies the authoritative Telegram identity for this request.
-    # Never let old history or another user's context override it.
     if current_user_name:
         profile_lines.append(
             f"Authoritative current user name: {current_user_name}. "
