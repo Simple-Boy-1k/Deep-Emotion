@@ -1097,14 +1097,24 @@ async def process_ai(
                         f"user {user_id}: {memory}"
                     )
 
-        if context is not None:
-            await send_text_with_user_mentions(
-                update,
-                context,
-                reply,
-            )
-        else:
-            await update.message.reply_text(reply)
+        # --------------------------------------------------
+        # Send reply (Crash Safe Fix Applied Here)
+        # --------------------------------------------------
+        try:
+            if context is not None:
+                await send_text_with_user_mentions(
+                    update,
+                    context,
+                    reply,
+                )
+            else:
+                await update.message.reply_text(reply)
+        except Exception as send_err:
+            print("Failed to reply to original message, sending direct message instead:", repr(send_err))
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=reply)
+            except Exception as final_err:
+                print("Could not send fall-back message:", repr(final_err))
 
     except Exception as exc:
         print(
